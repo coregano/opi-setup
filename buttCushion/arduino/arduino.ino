@@ -1,4 +1,4 @@
-// This script sends 9 sensor readings over serial. Meant for posture analyzer with 4 sensors at butt
+// This script sends 4 sensor readings over serial. Meant for posture analyzer with 4 sensors at butt
 #include <bluefruit.h>
 
 #define adcButt A1 // The analog pin we use to read the 4 butt sensors
@@ -13,7 +13,6 @@
 uint8_t counterPins[4] = {counterBit0, counterBit1, counterBit2, counterBit3};
 
 uint16_t buttReadings[4] = {0, 0, 0, 0}; // caches back readings
-//uint16_t allReadings[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // Sensor reading storage
 
 void setup() {
   // put your setup code here, to run once:

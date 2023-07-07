@@ -12,14 +12,20 @@ Author(s): Melissa LeBlanc-Williams for Adafruit Industries
 """
 
 import digitalio
+import analogio
 import board
 from PIL import Image, ImageDraw
 from adafruit_rgb_display import ili9341
+from time import sleep
 
-# Configuration for CS and DC pins (these are PiTFT defaults):
+# Configuration for CS and DC pins:
 cs_pin = digitalio.DigitalInOut(board.PC11)
 dc_pin = digitalio.DigitalInOut(board.PC6)
 reset_pin = digitalio.DigitalInOut(board.PC9)
+
+# Configuration for touch
+xPlus_pin = digitalio.DigitalInOut(board.PC14)
+xMinus_pin = analogio.AnalogIn(board.PC15)
 
 # Config for display baudrate (default max is 24mhz):
 BAUDRATE = 24000000
@@ -35,8 +41,6 @@ disp = ili9341.ILI9341(
     rst=reset_pin,
     baudrate=BAUDRATE,
 )
-# pylint: enable=line-too-long
-
 
 # Create blank image for drawing.
 # Make sure to create image with mode 'RGB' for full color.
@@ -44,7 +48,7 @@ if disp.rotation % 180 == 90:
     height = disp.width  # we swap height/width to rotate it to landscape!
     width = disp.height
 else:
-    width = disp.width  # we swap height/width to rotate it to landscape!
+    width = disp.width 
     height = disp.height
 image = Image.new("RGB", (width, height))
 
@@ -55,24 +59,29 @@ draw = ImageDraw.Draw(image)
 draw.rectangle((0, 0, width, height), outline=0, fill=(0, 0, 0))
 disp.image(image)
 
-image = Image.open("blinka.jpg")
+def image_prep(filename): # scales, crops and centers the image for display 
+    image = Image.open(filename)
+    # Scale the image to the smaller screen dimension
+    image_ratio = image.width / image.height
+    screen_ratio = width / height
+    if screen_ratio < image_ratio:
+        scaled_width = image.width * height // image.height
+        scaled_height = height
+    else:
+        scaled_width = width
+        scaled_height = image.height * width // image.width
+    image = image.resize((scaled_width, scaled_height), Image.Resampling.BICUBIC)
 
-# Scale the image to the smaller screen dimension
-image_ratio = image.width / image.height
-screen_ratio = width / height
-if screen_ratio < image_ratio:
-    scaled_width = image.width * height // image.height
-    scaled_height = height
-else:
-    scaled_width = width
-    scaled_height = image.height * width // image.width
-image = image.resize((scaled_width, scaled_height), Image.Resampling.BICUBIC)
+    # Crop and center the image
+    x = scaled_width // 2 - width // 2
+    y = scaled_height // 2 - height // 2
+    image = image.crop((x, y, x + width, y + height))
+    return image
 
-# Crop and center the image
-x = scaled_width // 2 - width // 2
-y = scaled_height // 2 - height // 2
-image = image.crop((x, y, x + width, y + height))
-
-# Display image.
-disp.image(image)
-
+for i in range(4):
+    image = image_prep(str(i) + ".jpg")
+    print(xPlus_pin)
+    disp.image(image)
+    sleep(5) 
+    if (i == 3):
+        i = 0 

@@ -18,7 +18,6 @@ from adafruit_ble import BLERadio
 from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
 from adafruit_ble.services.nordic import UARTService
 
-
 def make_forest(): 
     xDataframe, yDataFrame = createTrainingSet()
     x_train, x_test, y_train, y_test = train_test_split(xDataframe, yDataFrame, test_size=0.2, random_state=42)
@@ -83,7 +82,6 @@ def createTrainingSet():
     print("input columns")
     return xDf, yDf
 
-
 def CM_plot(y_real, y_pred): # plots the confusion matrix for a given prediction set with the intented postures
     cm = confusion_matrix(y_real, y_pred)
     print("Confusion Matrix:")
@@ -96,7 +94,6 @@ def CM_plot(y_real, y_pred): # plots the confusion matrix for a given prediction
     plt.ylabel("True")
     plt.title("Confusion Matrix")
     plt.show()
-    
 
 def confidence_analysis(y_pred_prob): # prints out predicted posture with the confidence    
     print("Confidence of Predictions:")
@@ -129,6 +126,7 @@ ble = BLERadio()
 while True:
     if not uart_connection:
         print("Trying to connect...")
+
         for adv in ble.start_scan(ProvideServicesAdvertisement):
             if UARTService in adv.services:
                 uart_connection = ble.connect(adv)
@@ -144,4 +142,3 @@ while True:
         while uart_connection.connected:
             run_forest(clf)
             # Save the decision tree model
-

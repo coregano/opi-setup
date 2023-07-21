@@ -1,9 +1,9 @@
 # This is the master code that will run in the OPi during actual prototype testing.
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn import metrics
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.model_selection import train_test_split
+# from sklearn.metrics import accuracy_score
+# from sklearn import metrics
 import time
 from time import sleep
 import pandas as pd
@@ -12,10 +12,8 @@ import re
 import os
 import sys
 import pickle
-from sklearn.metrics import confusion_matrix
 # import seaborn as sns
 # import matplotlib.pyplot as plt
-
 import digitalio
 import board
 from PIL import Image, ImageDraw
@@ -28,13 +26,14 @@ from adafruit_ble.services.nordic import UARTService
 isFirstRun = True
 
 # filesave location
-folder_path = 'csv_files/'
+folderPathOPi = '/home/orangepi/opi-setup/buttCushion/'
+
 # file name uniquifyer
 fileLabelCounter = 1 
 
 # Load the saved decision tree model
-forest_filename = 'decision_tree_model.pkl'
-clf = pickle.load(open(forest_filename, 'rb'))
+forestFile = 'decision_tree_model.pkl'
+clf = pickle.load(open(folderPathOPi + forestFile, 'rb'))
 
 # Configuration for CS and DC pins:
 cs_pin = digitalio.DigitalInOut(board.PC11)
@@ -92,20 +91,21 @@ def image_prep(filename):
     return image
 
 # prepare images for display
+image0 = image_prep("0.jpg")
 image1 = image_prep("1.png")
 image2 = image_prep("2.png")
-image3 = image_prep()
-image4 = image_prep()
-image5 = image_prep()
-image6 = image_prep()
-
+image3 = image_prep("3.png")
+image4 = image_prep("4.png")
+image5 = image_prep("5.png")
+image6 = image_prep("6.png")
 
 # Reads off an csv file to create input and result columns for the decision tree
 def createTrainingSet():
-    path = '/home/user/Documents/opi-setup/buttCushion/csv_files/'
+    pathPC = '/home/user/Documents/opi-setup/buttCushion/csv_files/'
+    pathOPi = '/home/orangepi/opi-setup/buttCushion/'
 
     ##################################################################################################
-    combinedDf = pd.read_csv(path + 'dataset_1.csv')
+    combinedDf = pd.read_csv(pathPC + 'dataset_1.csv')
     ##################################################################################################
 
     # Separate the input features (xDf) and labels (yDf)
@@ -113,19 +113,6 @@ def createTrainingSet():
     yDf = combinedDf.iloc[:, 4]
     print("input columns")
     return xDf, yDf
-
-# using precollected data, make a decision tree 
-def make_forest(): 
-    xDataframe, yDataFrame = createTrainingSet()
-    x_train, x_test, y_train, y_test = train_test_split(xDataframe, yDataFrame, test_size=0.2, random_state=42)
-
-    rf = RandomForestClassifier(n_estimators=100, random_state=42)
-    rf.fit(x_train, y_train)
-
-    y_pred = rf.predict(x_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(accuracy)
-    return rf
 
 # prints out predicted posture with confidence 
 def confidence_analysis(y_pred_prob):    
@@ -157,9 +144,9 @@ def run_forest():
 # uses decision tree to predict user posture
 def read_posture():
     runs = 20 # number of predictions to be made
-    dataset = []
-    dataDf = pd.DataFrame(columns=['1','2','3','4','Posture','Press'])
+    postureDataSet = [[]]
     for i in runs:
+        postureData = []
         try:
             datapoints = uart_read_array()
             xData = pd.DataFrame(data=[datapoints], columns=['1','2','3','4']) # Send all sensor readings in the list to a dataframe
@@ -167,6 +154,9 @@ def read_posture():
             raise ConnectionError
         print(xData)
         prediction = clf.predct(xData)
+        postureData = np.append(datapoints, prediction)
+        postureDataSet = np.vstack((postureDataSet, postureData))
+    return postureDataSet
 
 
 # reads raw data from buttBrick and reads continuously in case of error 
@@ -189,24 +179,27 @@ def uart_read_array():
         inputList.append(dPoint)
     return inputList
 
-# saves a dataframe as a csv file into the device.
-def save_csv(csvDf):
-    filename = 'test_data.csv'
-    while os.path.exists(folder_path+filename):
-        filename = f'dataset_{fileLabelCounter}.csv'
-        fileLabelCounter += 1
-    print(folder_path+filename)
-    csvDf.to_csv(folder_path + filename, index=False)
-    print("SAVE DONE")
+# # saves a dataframe as a csv file into the device.
+# def save_csv(csvDf):
+#     filename = 'test_data.csv'
+#     while os.path.exists(folder_path+filename):
+#         filename = f'dataset_{fileLabelCounter}.csv'
+#         fileLabelCounter += 1
+#     print(folder_path+filename)
+#     csvDf.to_csv(folder_path + filename, index=False)
+#     print("SAVE DONE")
 
 # returns whether the user is sitting on the cushion
 def isPresent():
     presenceCheckRuns = 20
     presenceCounter = 0
     threshold = 0.01
+    presenceStartTime = time.time()
     for i in presenceCheckRuns:
         presenceCounter += int(threshold < np.mean(uart_read_array()))
-    if (presenceCounter >= presenceCheckRuns):
+    presenceTime = time.time() - presenceStartTime
+    print(presenceTime)
+    if (presenceCounter >= presenceCheckRuns - 5):
         return True
     else:
         return False
@@ -230,31 +223,31 @@ def first_run():
     elapsed_time = time.time() - start_time
 
 # prompts the user to check if the predicted posture is correct
-def check_posture(isGoodPosture):
+def check_posture():
     press_count = 0
-    if isGoodPosture:
-        disp.image() # check if user is sitting right
-    else:
-        disp.image() # check if user is sitting wrong
     for i in range (10):
         press_count += int(touch_pin)
-        sleep (1)
-    if (press_count > 5):
+        sleep (0.5)
+    if (press_count > 3):
         return True
     else:
         return False
     
 # mainframe of code 
 # if code reaches this function, it means that the user is sitting on the cushion. 
-def run_posture(clf):
+def run_posture():
     inputDf = pd.DataFrame(columns=['1','2','3','4','Posture','Press'])
-    disp.image()
-    dataDf = read_posture(clf)
-    goodPostureCount = np.count_nonzero(1 == dataDf[4])
-    if (goodPostureCount > runs // 2): # more than half of predictions are 1
+    dataDf = read_posture()
+    goodPostureCount = np.sum(dataDf[:, 4] == 1) # count the occurance of 1
+    if (goodPostureCount > len(dataDf) // 2): # more than half of predictions are 1
+        disp.image(image5)
         press = check_posture(True)
     else:
+        disp.image(image6)
         press = check_posture(False)
+
+    if (press):
+        disp.image(image0)
     
 uart_connection = None
 ble = BLERadio()
@@ -262,6 +255,7 @@ ble = BLERadio()
 while True:
     if not uart_connection:
         print("Trying to connect...")
+        disp.image(image1)
         for adv in ble.start_scan(ProvideServicesAdvertisement):
             if UARTService in adv.services:
                 uart_connection = ble.connect(adv)
@@ -272,9 +266,12 @@ while True:
     if uart_connection and uart_connection.connected:
         # bluetooth connected
         uart_service = uart_connection[UARTService]
+        disp.image(image2)
         while uart_connection.connected:
             if not (isPresent()): # no user present, run the main loop again
+                disp.image(image3)
                 continue 
+            disp.image(image4)
             run_posture()
             # if (isFirstRun):
             #     first_run()

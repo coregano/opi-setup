@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2020 Dan Halbert for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
+import board
+import time
+from digitalio import DigitalInOut, Direction
+from analogio import AnalogIn
+
+from adafruit_ble import BLERadio
+from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
+from adafruit_ble.services.nordic import UARTService
+
+# Define the analog pin for reading the butt sensors
+adc_butt = AnalogIn(board.A5)
+
+# Define the counter bit pins for the mux counter (S3 - S0) and their relative board pins (D5 - D10)
+counter_bit3 = DigitalInOut(board.D5)
+counter_bit3.direction = Direction.OUTPUT
+
+counter_bit2 = DigitalInOut(board.D6)
+counter_bit2.direction = Direction.OUTPUT
+
+counter_bit1 = DigitalInOut(board.D9)
+counter_bit1.direction = Direction.OUTPUT
+
+counter_bit0 = DigitalInOut(board.D10)
+counter_bit0.direction = Direction.OUTPUT
+
+# initialise sensor data array 
+counter_pins = [counter_bit0, counter_bit1, counter_bit2, counter_bit3]
+butt_readings = [0, 0, 0, 0]
+
+# initialise parameters for BLE UART connection
+ble = BLERadio()
+uart = UARTService()
+advertisement = ProvideServicesAdvertisement(uart)
+
+# set rate of data delivery 
+timeDelay = 0.06
+
+def set_bit_pins(counter_number):
+    for j in range(4):
+        counter_pins[j].value = (counter_number >> j) & 1 # Extract the bit at position j
+
+def read_all_sensors():
+    for i in range(4):
+        set_bit_pins(i)
+        butt_readings[i] = adc_butt.value
+        time.sleep(timeDelay)
+
+def send_all_sensor_data():
+    uart.write((("%d %d %d %d\r\n") % butt_readings).encode("utf-8"))
+    time.sleep(timeDelay)
+
+while True:
+    ble.start_advertising(advertisement)
+    print("Waiting to connect")
+    while not ble.connected:
+        pass
+    print("Connected")
+    while ble.connected:
+        read_all_sensors()
+        send_all_sensor_data()

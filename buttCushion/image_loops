@@ -12,7 +12,6 @@ Author(s): Melissa LeBlanc-Williams for Adafruit Industries
 """
 
 import digitalio
-import analogio
 import board
 from PIL import Image, ImageDraw
 from adafruit_rgb_display import ili9341
@@ -24,8 +23,7 @@ dc_pin = digitalio.DigitalInOut(board.PC6)
 reset_pin = digitalio.DigitalInOut(board.PC9)
 
 # Configuration for touch
-xPlus_pin = digitalio.DigitalInOut(board.PC14)
-xMinus_pin = analogio.AnalogIn(board.PC15)
+touch_pin = digitalio.DigitalInOut(board.PC14)
 
 # Config for display baudrate (default max is 24mhz):
 BAUDRATE = 24000000
@@ -80,7 +78,7 @@ def image_prep(filename): # scales, crops and centers the image for display
 
 for i in range(4):
     image = image_prep(str(i) + ".jpg")
-    print(xPlus_pin)
+    print(touch_pin)
     disp.image(image)
     sleep(5) 
     if (i == 3):

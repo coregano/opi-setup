@@ -1,6 +1,7 @@
 # this code will take in 4%d format from BB and use a forest developed from pre-collected code and also do a live prediction of the current posture
 #In this script, test data is captured LIVE and printed. Roll back to this version if anything screws up.
 import pandas as pd
+import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -17,6 +18,11 @@ import pickle
 from adafruit_ble import BLERadio
 from adafruit_ble.advertising.standard import ProvideServicesAdvertisement
 from adafruit_ble.services.nordic import UARTService
+
+# filesave location
+folderPathOPi = '/home/user/Documents/opi-setup/buttCushion/'
+# Load the saved decision tree model
+forestFile = 'decision_tree_model.pkl'
 
 def make_forest(): 
     xDataframe, yDataFrame = createTrainingSet()
@@ -138,6 +144,9 @@ while True:
         uart_service = uart_connection[UARTService]
         clf = make_forest() 
         filename = 'decision_tree_model.pkl'
+        # Save the model to a file
+        joblib.dump(clf, 'decision_forest_model.joblib')  
+        # clf = pickle.load(open(folderPathOPi + forestFile, 'rb'))
         pickle.dump(clf, open(filename, 'wb'))
         while uart_connection.connected:
             run_forest(clf)

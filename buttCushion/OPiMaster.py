@@ -1,5 +1,6 @@
 # This is the master code that will run in the OPi during actual prototype testing.
 import pandas as pd
+import joblib
 # from sklearn.ensemble import RandomForestClassifier
 # from sklearn.model_selection import train_test_split
 # from sklearn.metrics import accuracy_score
@@ -32,8 +33,9 @@ folderPathOPi = '/home/orangepi/opi-setup/buttCushion/'
 fileLabelCounter = 1 
 
 # Load the saved decision tree model
-forestFile = 'decision_tree_model.pkl'
-clf = pickle.load(open(folderPathOPi + forestFile, 'rb'))
+forestFile = 'decision_forest_model.joblib'
+# clf = pickle.load(open(folderPathOPi + forestFile, 'rb'))
+clf = joblib.load('decision_forest_model.joblib')
 
 # Configuration for CS and DC pins:
 cs_pin = digitalio.DigitalInOut(board.PC11)
@@ -91,13 +93,13 @@ def image_prep(filename):
     return image
 
 # prepare images for display
-image0 = image_prep("0.jpg")
-image1 = image_prep("1.png")
-image2 = image_prep("2.png")
-image3 = image_prep("3.png")
-image4 = image_prep("4.png")
-image5 = image_prep("5.png")
-image6 = image_prep("6.png")
+image0 = image_prep(folderPathOPi + "0.jpg")
+image1 = image_prep(folderPathOPi + "1.png")
+image2 = image_prep(folderPathOPi + "2.png")
+image3 = image_prep(folderPathOPi + "3.png")
+image4 = image_prep(folderPathOPi + "4.png")
+image5 = image_prep(folderPathOPi + "5.png")
+image6 = image_prep(folderPathOPi + "6.png")
 
 # Reads off an csv file to create input and result columns for the decision tree
 def createTrainingSet():
@@ -144,8 +146,8 @@ def run_forest():
 # uses decision tree to predict user posture
 def read_posture():
     runs = 20 # number of predictions to be made
-    postureDataSet = [[]]
-    for i in runs:
+    postureDataSet = np.empty((0,5))
+    for i in range(runs):
         postureData = []
         try:
             datapoints = uart_read_array()
@@ -153,7 +155,7 @@ def read_posture():
         except ConnectionError:
             raise ConnectionError
         print(xData)
-        prediction = clf.predct(xData)
+        prediction = clf.predict(xData)
         postureData = np.append(datapoints, prediction)
         postureDataSet = np.vstack((postureDataSet, postureData))
     return postureDataSet
@@ -195,7 +197,7 @@ def isPresent():
     presenceCounter = 0
     threshold = 0.01
     presenceStartTime = time.time()
-    for i in presenceCheckRuns:
+    for i in range(presenceCheckRuns):
         presenceCounter += int(threshold < np.mean(uart_read_array()))
     presenceTime = time.time() - presenceStartTime
     print(presenceTime)
@@ -223,10 +225,10 @@ def first_run():
     elapsed_time = time.time() - start_time
 
 # prompts the user to check if the predicted posture is correct
-def check_posture():
+def isTouch():
     press_count = 0
     for i in range (10):
-        press_count += int(touch_pin)
+        press_count += int(touch_pin.value)
         sleep (0.5)
     if (press_count > 3):
         return True
@@ -241,13 +243,16 @@ def run_posture():
     goodPostureCount = np.sum(dataDf[:, 4] == 1) # count the occurance of 1
     if (goodPostureCount > len(dataDf) // 2): # more than half of predictions are 1
         disp.image(image5)
-        press = check_posture(True)
+        print("good")
     else:
         disp.image(image6)
-        press = check_posture(False)
-
-    if (press):
+        print("bad")
+    
+    if (isTouch()):
         disp.image(image0)
+        print("touched")
+    else:
+        print("no touch")
     
 uart_connection = None
 ble = BLERadio()

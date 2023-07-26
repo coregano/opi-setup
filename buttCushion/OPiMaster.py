@@ -35,7 +35,7 @@ fileLabelCounter = 1
 # Load the saved decision tree model
 forestFile = 'decision_forest_model.joblib'
 # clf = pickle.load(open(folderPathOPi + forestFile, 'rb'))
-clf = joblib.load('decision_forest_model.joblib')
+clf = joblib.load(folderPathOPi + forestFile)
 
 # Configuration for CS and DC pins:
 cs_pin = digitalio.DigitalInOut(board.PC11)
